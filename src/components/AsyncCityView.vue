@@ -1,22 +1,19 @@
 <template>
   <div class="flex flex-col flex-1 items-center">
     <!-- Banner -->
-    <div
-      v-if="route.query.preview"
-      class="text-white p-4 bg-weather-secondary w-full text-center"
-    >
+    <div v-if="route.query.preview" class="text-white p-4 bg-weather-secondary w-full text-center">
       <p>
-        You are currently previewing this city, click the "+"
-        icon to start tracking this city.
+        您当前正在预览该城市，点击 + 添加至列表.
       </p>
     </div>
+
     <!-- Weather Overview -->
     <div class="flex flex-col items-center text-white py-12">
       <h1 class="text-4xl mb-2">{{ route.params.city }}</h1>
-      <p class="text-sm mb-12">
+      <p class="text-sm mb-10">
         {{
           new Date(weatherData.currentTime).toLocaleDateString(
-            "en-us",
+            "zh-cn",
             {
               weekday: "short",
               day: "2-digit",
@@ -26,19 +23,19 @@
         }}
         {{
           new Date(weatherData.currentTime).toLocaleTimeString(
-            "en-us",
+            "zh-cn",
             {
               timeStyle: "short",
             }
           )
         }}
       </p>
-      <p class="text-8xl mb-8">
+      <p class="text-8xl mb-6">
         {{ Math.round(weatherData.current.temp) }}&deg;
       </p>
       <p>
-        Feels like
-        {{ Math.round(weatherData.current.feels_like) }} &deg;
+        体感
+        {{ Math.round(weatherData.current.feels_like) }} &deg;C
       </p>
       <p class="capitalize">
         {{ weatherData.current.weather[0].description }}
@@ -52,12 +49,13 @@
       />
     </div>
 
+    <!-- 横线 -->
     <hr class="border-white border-opacity-10 border w-full" />
 
     <!-- Hourly Weather -->
     <div class="max-w-screen-md w-full py-12">
       <div class="mx-8 text-white">
-        <h2 class="mb-4">Hourly Weather</h2>
+        <h2 class="mb-4">分时预报</h2>
         <div class="flex gap-10 overflow-x-scroll">
           <div
             v-for="hourData in weatherData.hourly"
@@ -68,7 +66,7 @@
               {{
                 new Date(
                   hourData.currentTime
-                ).toLocaleTimeString("en-us", {
+                ).toLocaleTimeString("zh-cn", {
                   hour: "numeric",
                 })
               }}
@@ -87,13 +85,12 @@
         </div>
       </div>
     </div>
-
+    
     <hr class="border-white border-opacity-10 border w-full" />
-
     <!-- Weekly Weather -->
     <div class="max-w-screen-md w-full py-12">
       <div class="mx-8 text-white">
-        <h2 class="mb-4">7 Day Forecast</h2>
+        <h2 class="mb-4">7天预报</h2>
         <div
           v-for="day in weatherData.daily"
           :key="day.dt"
@@ -102,7 +99,7 @@
           <p class="flex-1">
             {{
               new Date(day.dt * 1000).toLocaleDateString(
-                "en-us",
+                "zh-cn",
                 {
                   weekday: "long",
                 }
@@ -117,8 +114,8 @@
             alt=""
           />
           <div class="flex gap-2 flex-1 justify-end">
-            <p>H: {{ Math.round(day.temp.max) }}</p>
-            <p>L: {{ Math.round(day.temp.min) }}</p>
+            <p>{{ Math.round(day.temp.min) }}&deg;C</p>
+            <p>- {{ Math.round(day.temp.max) }}&deg;C</p>
           </div>
         </div>
       </div>
@@ -126,6 +123,7 @@
 
     <div
       class="flex items-center gap-2 py-12 text-white cursor-pointer duration-150 hover:text-red-500"
+      v-if="showDel"
       @click="removeCity"
     >
       <i class="fa-solid fa-trash"></i>
@@ -135,16 +133,15 @@
 </template>
 
 <script setup>
-import axios from "axios";
-import { useRoute, useRouter } from "vue-router";
+import { computed } from 'vue';
+import { useRoute, useRouter } from 'vue-router';
+import { OneCallWeather } from '../api/weather';
+
 
 const route = useRoute();
 const getWeatherData = async () => {
   try {
-    const weatherData = await axios.get(
-      `https://api.openweathermap.org/data/2.5/onecall?lat=${route.query.lat}&lon=${route.query.lng}&exclude={part}&appid=7efa332cf48aeb9d2d391a51027f1a71&units=imperial`
-    );
-
+    const weatherData = await OneCallWeather(route.query)
     // cal current date & time
     const localOffset = new Date().getTimezoneOffset() * 60000;
     const utc = weatherData.data.current.dt * 1000 + localOffset;
@@ -157,7 +154,6 @@ const getWeatherData = async () => {
       hour.currentTime =
         utc + 1000 * weatherData.data.timezone_offset;
     });
-
     return weatherData.data;
   } catch (err) {
     console.log(err);
@@ -166,6 +162,10 @@ const getWeatherData = async () => {
 const weatherData = await getWeatherData();
 
 const router = useRouter();
+
+const showDel = computed(()=>{
+  return (route.query?.id)?true:false
+})
 const removeCity = () => {
   const cities = JSON.parse(localStorage.getItem("savedCities"));
   const updatedCities = cities.filter(
